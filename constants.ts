@@ -1,4 +1,4 @@
-import { Stamp, UserType } from './types';
+import { Stamp, UserType } from './types.ts';
 
 export const SANTO_TOMAS_SHIELD_URL = 'https://upload.wikimedia.org/wikipedia/commons/1/1b/Escudo_de_Santo_Tom%C3%A1s_%28Atl%C3%A1ntico%29.svg';
 export const INSTITUTIONAL_EMAIL = 'tesoreria@santotomas-atlantico.gov.co';

@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { CalculationResult } from '../types';
+import { CalculationResult, ContributorInfo } from '../types.ts';
 
 const currencyFormatter = new Intl.NumberFormat('es-CO', {
   style: 'currency',
@@ -11,10 +12,11 @@ interface EmailModalProps {
   results: CalculationResult[];
   total: number;
   contractValue: number;
+  info: ContributorInfo;
   onClose: () => void;
 }
 
-const EmailModal: React.FC<EmailModalProps> = ({ results, total, contractValue, onClose }) => {
+const EmailModal: React.FC<EmailModalProps> = ({ results, total, contractValue, info, onClose }) => {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
 
@@ -32,6 +34,12 @@ const EmailModal: React.FC<EmailModalProps> = ({ results, total, contractValue, 
     let body = 'Resumen de Liquidación de Estampillas Municipales\n';
     body += 'Alcaldía Municipal de Santo Tomás, Atlántico\n';
     body += '==========================================\n\n';
+    
+    body += `DATOS DEL CONTRATISTA:\n`;
+    body += `Nombre/Razón Social: ${info.name}\n`;
+    body += `Identificación: ${info.docType} ${info.docNumber}\n`;
+    body += `Contrato No: ${info.contractNumber}\n`;
+    body += '------------------------------------------\n\n';
 
     body += `Valor del Contrato: ${currencyFormatter.format(contractValue)}\n`;
     body += '------------------------------------------\n';
@@ -59,7 +67,7 @@ const EmailModal: React.FC<EmailModalProps> = ({ results, total, contractValue, 
     }
     setError('');
 
-    const subject = encodeURIComponent('Liquidación de Estampillas - Alcaldía de Santo Tomás');
+    const subject = encodeURIComponent(`Liquidación Estampillas - Contrato ${info.contractNumber}`);
     const body = generateEmailBody();
     
     const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=${subject}&body=${body}`;

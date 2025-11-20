@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
-import { CalculationResult } from '../types';
-import PaymentModal from './PaymentModal';
-import EmailModal from './EmailModal';
+import { CalculationResult, ContributorInfo } from '../types.ts';
+import PaymentModal from './PaymentModal.tsx';
+import EmailModal from './EmailModal.tsx';
 
 // Declaraciones de tipo para las bibliotecas cargadas a través de CDN
 declare global {
@@ -15,6 +16,7 @@ interface ResultsDisplayProps {
   results: CalculationResult[];
   total: number;
   contractValue: number;
+  info: ContributorInfo;
 }
 
 const currencyFormatter = new Intl.NumberFormat('es-CO', {
@@ -59,7 +61,7 @@ const StampCard: React.FC<{ result: CalculationResult; onClick: () => void }> = 
 };
 
 
-const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, total, contractValue }) => {
+const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, total, contractValue, info }) => {
   const [selectedForPayment, setSelectedForPayment] = useState<CalculationResult | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -77,6 +79,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, total, contrac
     setIsGeneratingPdf(true);
 
     try {
+        // Aumentamos la escala para mejor calidad en impresión
         const canvas = await html2canvas(printableElement, {
             scale: 2,
             useCORS: true,
@@ -86,29 +89,24 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, total, contrac
         
         const imgData = canvas.toDataURL('image/png');
         
-        // Dimensiones y márgenes en mm (10cm = 100mm, 20cm = 200mm, 1.27cm = 12.7mm)
-        const pageW_mm = 100;
-        const pageH_mm = 200;
-        const margin_mm = 12.7;
+        // Dimensiones Carta (Letter) en mm
+        const pdfWidth = 215.9; 
+        // const pdfHeight = 279.4; // No se usa explícitamente para el cálculo de la imagen, pero define el formato
+        const margin = 20; // Margen de 2cm
 
         const pdf = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
-            format: [pageW_mm, pageH_mm]
+            format: 'letter' // Formato Carta
         });
 
-        const contentW_mm = pageW_mm - (margin_mm * 2);
-
-        const canvasAspectRatio = canvas.width / canvas.height;
+        // Calcular dimensiones para ajustar al ancho de la página respetando márgenes
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfContentWidth = pdfWidth - (margin * 2);
+        const pdfContentHeight = (imgProps.height * pdfContentWidth) / imgProps.width;
         
-        const finalImgW_mm = contentW_mm;
-        const finalImgH_mm = finalImgW_mm / canvasAspectRatio;
-
-        const finalX_mm = margin_mm;
-        const finalY_mm = margin_mm;
-        
-        pdf.addImage(imgData, 'PNG', finalX_mm, finalY_mm, finalImgW_mm, finalImgH_mm);
-        pdf.save('Liquidacion_Estampillas.pdf');
+        pdf.addImage(imgData, 'PNG', margin, margin, pdfContentWidth, pdfContentHeight);
+        pdf.save(`Liquidacion_${info.docNumber}.pdf`);
 
     } catch (error) {
         console.error("Error al generar el PDF:", error);
@@ -120,117 +118,142 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, total, contrac
 
   return (
     <>
-      {/* Elemento oculto para la generación de PDF con diseño horizontal */}
-      <div id="pdf-content" style={{ position: 'absolute', left: '-9999px', padding: '20px', backgroundColor: 'white', fontFamily: 'sans-serif', color: '#111827', width: 'auto', display: 'inline-block' }}>
-        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-            <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0, color: '#1f2937' }}>Liquidacion de Estampilla Municipal</h1>
-            <p style={{ fontSize: '14px', margin: '4px 0 0 0', color: '#4b5563' }}>Alcaldia Municipal de Santo Tomás Nit: 800116284</p>
+      {/* Elemento oculto para la generación de PDF - Ancho aumentado para simular documento carta */}
+      <div id="pdf-content" style={{ position: 'absolute', left: '-9999px', padding: '40px', backgroundColor: 'white', fontFamily: 'sans-serif', color: '#111827', width: '800px', display: 'block' }}>
+        <div style={{ textAlign: 'center', marginBottom: '30px', borderBottom: '3px solid #166534', paddingBottom: '15px' }}>
+            <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0, color: '#1f2937' }}>LIQUIDACIÓN ESTAMPILLAS MUNICIPALES</h1>
+            <p style={{ fontSize: '16px', margin: '8px 0 0 0', color: '#4b5563' }}>Alcaldía Municipal de Santo Tomás - Nit: 800116284-6</p>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '1px solid #e5e7eb', paddingBottom: '8px', marginBottom: '16px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>Resumen de Liquidación</h2>
-          <p style={{ fontSize: '14px', color: '#4b5563', margin: 0 }}>
-            <span style={{ fontWeight: '500' }}>Valor Contrato:</span> {currencyFormatter.format(contractValue)}
+
+        {/* Info del Contratista en PDF - Fondo Blanco con Letras Negras */}
+        <div style={{ marginBottom: '24px', padding: '20px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb', color: '#1f2937' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: 'bold', color: '#111827', margin: '0 0 12px 0', textTransform: 'uppercase', borderBottom: '1px solid #d1d5db', paddingBottom: '8px' }}>Datos del Contratista</h2>
+            <table style={{ width: '100%', fontSize: '14px', borderCollapse: 'collapse' }}>
+                <tbody>
+                    <tr>
+                        <td style={{ width: '30%', fontWeight: '600', color: '#374151', padding: '6px 0' }}>Nombre / Razón Social:</td>
+                        <td style={{ padding: '6px 0', fontSize: '14px', color: '#111827' }}>{info.name}</td>
+                    </tr>
+                    <tr>
+                        <td style={{ fontWeight: '600', color: '#374151', padding: '6px 0' }}>Identificación:</td>
+                        <td style={{ padding: '6px 0', fontSize: '14px', color: '#111827' }}>{info.docType} {info.docNumber}</td>
+                    </tr>
+                    <tr>
+                        <td style={{ fontWeight: '600', color: '#374151', padding: '6px 0' }}>Contrato No.:</td>
+                        <td style={{ padding: '6px 0', fontSize: '14px', color: '#111827' }}>{info.contractNumber}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px', marginBottom: '20px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>Resumen Financiero</h2>
+          <p style={{ fontSize: '16px', color: '#4b5563', margin: 0 }}>
+            <span style={{ fontWeight: '600' }}>Base Contrato:</span> {currencyFormatter.format(contractValue)}
           </p>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'row', gap: '16px', alignItems: 'stretch' }}>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             {results.map(({ stamp, value }) => (
-                <div key={stamp.id} style={{ border: '1px solid #e5e7eb', padding: '16px', borderRadius: '8px', width: '220px', display: 'flex', flexDirection: 'column' }}>
+                <div key={stamp.id} style={{ borderBottom: '1px dashed #e5e7eb', paddingBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ flexGrow: 1 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                            <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#166534' }}>{stamp.name}</h3>
-                            <span style={{ backgroundColor: '#fef3c7', color: '#92400e', fontSize: '10px', fontWeight: '600', padding: '2px 8px', borderRadius: '9999px' }}>{stamp.percentage * 100}%</span>
+                        <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1f2937', margin: 0 }}>{stamp.name} ({stamp.percentage * 100}%)</h3>
+                        <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
+                            {stamp.bank} - Cuenta: {stamp.account}
                         </div>
-                        <p style={{ fontSize: '22px', fontWeight: '600', color: '#1f2937', margin: '16px 0' }}>
-                            {currencyFormatter.format(value)}
-                        </p>
                     </div>
-                    <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '12px', marginTop: '8px', fontSize: '12px', color: '#4b5563' }}>
-                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontWeight: '500', color: '#6b7280' }}>Cuenta:</span>
-                            <span>{stamp.bank}</span>
-                         </div>
-                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-                            <span style={{ fontWeight: '500', color: '#6b7280' }}>Número:</span>
-                            <span>{stamp.account}</span>
-                         </div>
+                    <div style={{ fontSize: '18px', fontWeight: '600', color: '#166534' }}>
+                        {currencyFormatter.format(value)}
                     </div>
                 </div>
             ))}
-            <div style={{ border: '1px solid #eab308', padding: '16px', borderRadius: '8px', backgroundColor: '#fefce8', width: '220px', display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center' }}>
-                <span style={{ fontSize: '16px', fontWeight: '600', color: '#4b5563', display: 'block' }}>TOTAL A PAGAR:</span>
-                <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#166534', display: 'block', marginTop: '8px' }}>
-                    {currencyFormatter.format(total)}
-                </span>
-            </div>
+        </div>
+
+        <div style={{ marginTop: '30px', borderTop: '2px solid #166534', paddingTop: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>TOTAL A PAGAR</h2>
+            <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#166534', margin: 0 }}>{currencyFormatter.format(total)}</p>
+        </div>
+        
+        <div style={{ marginTop: '40px', textAlign: 'center', fontSize: '12px', color: '#9ca3af' }}>
+            <p>Generado el {new Date().toLocaleDateString()} - Aplicativo de Liquidación de Estampillas</p>
         </div>
       </div>
 
-      <div className="w-full mt-8 p-6 bg-white border border-gray-200 rounded-lg shadow-md animate-fade-in printable-area">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2 border-b pb-3">Resumen de Liquidación</h2>
-        <p className="text-center text-gray-600 my-4 no-print">Haz clic en una tarjeta para ver los detalles de pago.</p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+      <div className="mt-8 space-y-6 animation-fade-in">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-gray-800">Resultados de la Liquidación</h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {results.map((result) => (
-            <StampCard key={result.stamp.id} result={result} onClick={() => setSelectedForPayment(result)} />
+            <StampCard
+              key={result.stamp.id}
+              result={result}
+              onClick={() => setSelectedForPayment(result)}
+            />
           ))}
         </div>
 
-        <div className="mt-8 pt-4 border-t-2 border-dashed">
-          <div className="flex justify-between items-center bg-yellow-50 p-4 rounded-lg">
-            <span className="text-xl font-semibold text-gray-700">TOTAL A PAGAR:</span>
-            <span className="text-3xl font-bold text-green-800">{currencyFormatter.format(total)}</span>
+        <div className="bg-green-50 rounded-xl p-6 flex flex-col md:flex-row justify-between items-center border border-green-200 mt-6">
+          <div className="mb-4 md:mb-0">
+            <h3 className="text-xl font-semibold text-green-900">Total a Pagar</h3>
+            <p className="text-green-700 text-sm">Suma de todas las estampillas aplicables</p>
+          </div>
+          <div className="text-4xl font-bold text-green-800">
+            {currencyFormatter.format(total)}
           </div>
         </div>
-        
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 no-print">
+
+        <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8 no-print">
           <button
             onClick={handlePrintToPdf}
             disabled={isGeneratingPdf}
-            className="inline-flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-blue-600 text-white font-bold text-lg rounded-lg hover:bg-blue-700 transition-all duration-300 shadow-lg transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-wait"
+            className={`flex items-center justify-center px-6 py-3 text-white font-semibold rounded-lg shadow-md transition-colors ${
+              isGeneratingPdf ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+            }`}
           >
             {isGeneratingPdf ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Generando...
-              </>
+               <>
+                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                 </svg>
+                 Generando...
+               </>
             ) : (
-              <>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Descargar Liquidación
-              </>
+               <>
+                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                 Descargar PDF
+               </>
             )}
           </button>
+
           <button
             onClick={() => setIsEmailModalOpen(true)}
-            className="inline-flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-green-700 text-white font-bold text-lg rounded-lg hover:bg-green-800 transition-all duration-300 shadow-lg transform hover:scale-105"
+            className="flex items-center justify-center px-6 py-3 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition-colors"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-            Enviar por Email
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+            Enviar por Correo
           </button>
         </div>
-
-        {selectedForPayment && (
-          <PaymentModal 
-            result={selectedForPayment}
-            onClose={() => setSelectedForPayment(null)}
-          />
-        )}
-        {isEmailModalOpen && (
-            <EmailModal
-                results={results}
-                total={total}
-                contractValue={contractValue}
-                onClose={() => setIsEmailModalOpen(false)}
-            />
-        )}
       </div>
+
+      {selectedForPayment && (
+        <PaymentModal
+          result={selectedForPayment}
+          onClose={() => setSelectedForPayment(null)}
+        />
+      )}
+
+      {isEmailModalOpen && (
+        <EmailModal
+          results={results}
+          total={total}
+          contractValue={contractValue}
+          info={info}
+          onClose={() => setIsEmailModalOpen(false)}
+        />
+      )}
     </>
   );
 };

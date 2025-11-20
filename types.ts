@@ -17,3 +17,10 @@ export interface CalculationResult {
   stamp: Stamp;
   value: number;
 }
+
+export interface ContributorInfo {
+  name: string;
+  docType: string;
+  docNumber: string;
+  contractNumber: string;
+}

@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { CalculationResult } from '../types';
+import { CalculationResult } from '../types.ts';
 
 const currencyFormatter = new Intl.NumberFormat('es-CO', {
   style: 'currency',

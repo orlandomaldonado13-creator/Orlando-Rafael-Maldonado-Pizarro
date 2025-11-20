@@ -1,14 +1,20 @@
+
 import React, { useState, useCallback } from 'react';
-import Header from './components/Header';
-import CalculatorForm from './components/CalculatorForm';
-import ResultsDisplay from './components/ResultsDisplay';
-import { UserType, CalculationResult } from './types';
-import { STAMPS } from './constants';
+import Header from './components/Header.tsx';
+import CalculatorForm from './components/CalculatorForm.tsx';
+import ResultsDisplay from './components/ResultsDisplay.tsx';
+import { UserType, CalculationResult, ContributorInfo } from './types.ts';
+import { STAMPS } from './constants.ts';
 
 const App: React.FC = () => {
-  const [calculation, setCalculation] = useState<{ results: CalculationResult[]; total: number; contractValue: number; } | null>(null);
+  const [calculation, setCalculation] = useState<{ 
+    results: CalculationResult[]; 
+    total: number; 
+    contractValue: number;
+    info: ContributorInfo;
+  } | null>(null);
 
-  const handleCalculate = useCallback((userType: UserType, contractValue: number) => {
+  const handleCalculate = useCallback((userType: UserType, contractValue: number, info: ContributorInfo) => {
     const applicableStamps = STAMPS.filter(stamp => stamp.appliesTo.includes(userType));
     
     const results: CalculationResult[] = applicableStamps.map(stamp => ({
@@ -17,7 +23,7 @@ const App: React.FC = () => {
     }));
 
     const total = results.reduce((sum, result) => sum + result.value, 0);
-    setCalculation({ results, total, contractValue });
+    setCalculation({ results, total, contractValue, info });
   }, []);
 
   const handleClear = useCallback(() => {
@@ -41,6 +47,7 @@ const App: React.FC = () => {
             results={calculation.results}
             total={calculation.total}
             contractValue={calculation.contractValue}
+            info={calculation.info}
           />
         )}
       </main>
